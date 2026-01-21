@@ -1,0 +1,16 @@
+/* Cypress Recorder Content Script Styles */
+
+#cypress-recorder-highlight,
+#cypress-recorder-tooltip,
+#cypress-recorder-indicator {
+  /* Ensure our elements are always on top and don't inherit page styles */
+  all: initial;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+/* Prevent page styles from affecting our overlay */
+#cypress-recorder-highlight * ,
+#cypress-recorder-tooltip *,
+#cypress-recorder-indicator * {
+  all: unset;
+}
