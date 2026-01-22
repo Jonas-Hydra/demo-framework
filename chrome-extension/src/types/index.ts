@@ -126,7 +126,8 @@ export type MessageType =
   | 'EXPORT_CODE'
   | 'PAGE_ANALYZED'
   | 'GET_RECORDING_STATE'
-  | 'HIGHLIGHT_ELEMENT';
+  | 'HIGHLIGHT_ELEMENT'
+  | 'SETTINGS_UPDATED';
 
 export interface ExtensionMessage {
   type: MessageType;
@@ -160,26 +161,39 @@ export const STORAGE_KEYS = {
 
 // Settings
 export interface ExtensionSettings {
+  // Code generation
+  baseUrl: string;
+  describeName: string;
+  testNamePrefix: string;
+
+  // Default options
   defaultIncludeA11y: boolean;
   defaultIncludeScreenshots: boolean;
-  selectorPriority: SelectorStrategy[];
+  defaultIncludeAssertions: boolean;
+
+  // Selector preferences
+  selectorPriority: 'data-testid' | 'id' | 'name' | 'role' | 'auto';
   excludedClassPatterns: string[];
+
+  // Recording options
+  recordHover: boolean;
+  recordScroll: boolean;
+  highlightElements: boolean;
 }
 
 export const DEFAULT_SETTINGS: ExtensionSettings = {
+  // Code generation
+  baseUrl: '',
+  describeName: 'Recorded Test',
+  testNamePrefix: 'Recording',
+
+  // Default options
   defaultIncludeA11y: true,
   defaultIncludeScreenshots: true,
-  selectorPriority: [
-    'data-testid',
-    'data-cy',
-    'data-test',
-    'aria-label',
-    'role',
-    'id',
-    'text',
-    'class',
-    'css-path'
-  ],
+  defaultIncludeAssertions: true,
+
+  // Selector preferences
+  selectorPriority: 'auto',
   excludedClassPatterns: [
     'ng-*',      // Angular
     'sc-*',      // Styled-components
@@ -191,5 +205,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
     'chakra-*',  // Chakra UI
     'ant-*',     // Ant Design
     'tw-*'       // Tailwind dynamic
-  ]
+  ],
+
+  // Recording options
+  recordHover: false,
+  recordScroll: false,
+  highlightElements: true
 };

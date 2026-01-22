@@ -139,6 +139,106 @@
       </button>
     </section>
 
+    <!-- Settings Panel (overlay) -->
+    <section id="settingsPanel" class="settings-overlay hidden">
+      <div class="settings-content">
+        <div class="settings-header">
+          <h2>Settings</h2>
+          <button id="closeSettingsBtn" class="btn-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="settings-body">
+          <!-- Code Generation Settings -->
+          <div class="settings-section">
+            <h3>Code Generation</h3>
+
+            <div class="setting-item">
+              <label for="settingBaseUrl">Base URL</label>
+              <input type="text" id="settingBaseUrl" placeholder="http://localhost:3000">
+              <span class="setting-hint">Used to generate relative paths in cy.visit()</span>
+            </div>
+
+            <div class="setting-item">
+              <label for="settingDescribeName">Default Describe Name</label>
+              <input type="text" id="settingDescribeName" placeholder="Recorded Test">
+            </div>
+
+            <div class="setting-item">
+              <label for="settingTestPrefix">Test Name Prefix</label>
+              <input type="text" id="settingTestPrefix" placeholder="Recording">
+            </div>
+          </div>
+
+          <!-- Default Options -->
+          <div class="settings-section">
+            <h3>Default Options</h3>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingDefaultA11y" checked>
+              <span>Include accessibility checks by default</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingDefaultScreenshots" checked>
+              <span>Include screenshots by default</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingDefaultAssertions" checked>
+              <span>Include assertions by default</span>
+            </label>
+          </div>
+
+          <!-- Selector Preferences -->
+          <div class="settings-section">
+            <h3>Selector Preferences</h3>
+            <span class="setting-hint">Priority order for generating selectors</span>
+
+            <div class="setting-item">
+              <label for="settingSelectorPriority">Selector Priority</label>
+              <select id="settingSelectorPriority">
+                <option value="data-testid">data-testid first</option>
+                <option value="id">ID first</option>
+                <option value="name">Name attribute first</option>
+                <option value="role">Role/ARIA first</option>
+                <option value="auto" selected>Auto (smart detection)</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Recording Settings -->
+          <div class="settings-section">
+            <h3>Recording</h3>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingRecordHover">
+              <span>Record hover events</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingRecordScroll">
+              <span>Record scroll events</span>
+            </label>
+
+            <label class="checkbox-label">
+              <input type="checkbox" id="settingHighlightElements" checked>
+              <span>Highlight elements on hover</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="settings-footer">
+          <button id="resetSettingsBtn" class="btn btn-secondary">Reset to Defaults</button>
+          <button id="saveSettingsBtn" class="btn btn-primary">Save Settings</button>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <footer class="footer">
       <span>v1.0.0</span>

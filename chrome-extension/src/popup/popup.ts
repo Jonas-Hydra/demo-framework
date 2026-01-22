@@ -2,7 +2,10 @@ import {
   RecordingState,
   RecordingSession,
   RecordedAction,
-  CodeGenerationOptions
+  CodeGenerationOptions,
+  ExtensionSettings,
+  DEFAULT_SETTINGS,
+  STORAGE_KEYS
 } from '../types';
 import { cypressGenerator } from '../generators/cypress-generator';
 
@@ -11,6 +14,7 @@ class PopupController {
   private isRecording = false;
   private isPaused = false;
   private currentTabId: number | null = null;
+  private settings: ExtensionSettings = { ...DEFAULT_SETTINGS };
 
   // DOM elements
   private startBtn!: HTMLButtonElement;
@@ -33,12 +37,34 @@ class PopupController {
   private includeScreenshots!: HTMLInputElement;
   private includeAssertions!: HTMLInputElement;
 
+  // Settings panel elements
+  private settingsBtn!: HTMLAnchorElement;
+  private settingsPanel!: HTMLElement;
+  private closeSettingsBtn!: HTMLButtonElement;
+  private saveSettingsBtn!: HTMLButtonElement;
+  private resetSettingsBtn!: HTMLButtonElement;
+
+  // Settings inputs
+  private settingBaseUrl!: HTMLInputElement;
+  private settingDescribeName!: HTMLInputElement;
+  private settingTestPrefix!: HTMLInputElement;
+  private settingDefaultA11y!: HTMLInputElement;
+  private settingDefaultScreenshots!: HTMLInputElement;
+  private settingDefaultAssertions!: HTMLInputElement;
+  private settingSelectorPriority!: HTMLSelectElement;
+  private settingRecordHover!: HTMLInputElement;
+  private settingRecordScroll!: HTMLInputElement;
+  private settingHighlightElements!: HTMLInputElement;
+
   constructor() {
     this.initElements();
     this.attachEventListeners();
-    this.getCurrentTab().then(() => {
-      this.loadState();
-      this.loadSessions();
+    this.loadSettings().then(() => {
+      this.applySettingsToCheckboxes();
+      this.getCurrentTab().then(() => {
+        this.loadState();
+        this.loadSessions();
+      });
     });
   }
 
@@ -61,6 +87,25 @@ class PopupController {
     this.includeA11y = document.getElementById('includeA11y') as HTMLInputElement;
     this.includeScreenshots = document.getElementById('includeScreenshots') as HTMLInputElement;
     this.includeAssertions = document.getElementById('includeAssertions') as HTMLInputElement;
+
+    // Settings panel elements
+    this.settingsBtn = document.getElementById('settingsBtn') as HTMLAnchorElement;
+    this.settingsPanel = document.getElementById('settingsPanel') as HTMLElement;
+    this.closeSettingsBtn = document.getElementById('closeSettingsBtn') as HTMLButtonElement;
+    this.saveSettingsBtn = document.getElementById('saveSettingsBtn') as HTMLButtonElement;
+    this.resetSettingsBtn = document.getElementById('resetSettingsBtn') as HTMLButtonElement;
+
+    // Settings inputs
+    this.settingBaseUrl = document.getElementById('settingBaseUrl') as HTMLInputElement;
+    this.settingDescribeName = document.getElementById('settingDescribeName') as HTMLInputElement;
+    this.settingTestPrefix = document.getElementById('settingTestPrefix') as HTMLInputElement;
+    this.settingDefaultA11y = document.getElementById('settingDefaultA11y') as HTMLInputElement;
+    this.settingDefaultScreenshots = document.getElementById('settingDefaultScreenshots') as HTMLInputElement;
+    this.settingDefaultAssertions = document.getElementById('settingDefaultAssertions') as HTMLInputElement;
+    this.settingSelectorPriority = document.getElementById('settingSelectorPriority') as HTMLSelectElement;
+    this.settingRecordHover = document.getElementById('settingRecordHover') as HTMLInputElement;
+    this.settingRecordScroll = document.getElementById('settingRecordScroll') as HTMLInputElement;
+    this.settingHighlightElements = document.getElementById('settingHighlightElements') as HTMLInputElement;
   }
 
   private attachEventListeners(): void {
@@ -85,6 +130,22 @@ class PopupController {
 
     // Clear sessions
     this.clearSessionsBtn.addEventListener('click', () => this.clearSessions());
+
+    // Settings
+    this.settingsBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.openSettings();
+    });
+    this.closeSettingsBtn.addEventListener('click', () => this.closeSettings());
+    this.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+    this.resetSettingsBtn.addEventListener('click', () => this.resetSettings());
+
+    // Close settings on overlay click
+    this.settingsPanel.addEventListener('click', (e) => {
+      if (e.target === this.settingsPanel) {
+        this.closeSettings();
+      }
+    });
 
     // Listen for updates from background
     chrome.runtime.onMessage.addListener((message) => {
@@ -144,12 +205,13 @@ class PopupController {
     if (!tab?.url) return;
 
     try {
+      const prefix = this.settings.testNamePrefix || 'Recording';
       const state = await chrome.runtime.sendMessage({
         type: 'START_RECORDING',
         tabId: this.currentTabId,
         payload: {
           url: tab.url,
-          name: `Recording ${new Date().toLocaleTimeString()}`
+          name: `${prefix} ${new Date().toLocaleTimeString()}`
         }
       }) as RecordingState;
 
@@ -328,7 +390,8 @@ class PopupController {
       includeScreenshots: this.includeScreenshots.checked,
       includeAssertions: this.includeAssertions.checked,
       testName: this.currentSession.name,
-      describeName: 'Recorded Test'
+      describeName: this.settings.describeName || 'Recorded Test',
+      baseUrl: this.settings.baseUrl || undefined
     };
 
     const code = cypressGenerator.generate(this.currentSession, options);
@@ -526,6 +589,108 @@ class PopupController {
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
       .substring(0, 50);
+  }
+
+  // Settings methods
+  private async loadSettings(): Promise<void> {
+    try {
+      const result = await chrome.storage.sync.get(STORAGE_KEYS.SETTINGS);
+      if (result[STORAGE_KEYS.SETTINGS]) {
+        this.settings = { ...DEFAULT_SETTINGS, ...result[STORAGE_KEYS.SETTINGS] };
+      } else {
+        this.settings = { ...DEFAULT_SETTINGS };
+      }
+    } catch (error) {
+      console.error('Failed to load settings:', error);
+      this.settings = { ...DEFAULT_SETTINGS };
+    }
+  }
+
+  private applySettingsToCheckboxes(): void {
+    // Apply default settings to the code options checkboxes
+    this.includeA11y.checked = this.settings.defaultIncludeA11y;
+    this.includeScreenshots.checked = this.settings.defaultIncludeScreenshots;
+    this.includeAssertions.checked = this.settings.defaultIncludeAssertions;
+  }
+
+  private openSettings(): void {
+    // Populate settings form with current values
+    this.settingBaseUrl.value = this.settings.baseUrl;
+    this.settingDescribeName.value = this.settings.describeName;
+    this.settingTestPrefix.value = this.settings.testNamePrefix;
+    this.settingDefaultA11y.checked = this.settings.defaultIncludeA11y;
+    this.settingDefaultScreenshots.checked = this.settings.defaultIncludeScreenshots;
+    this.settingDefaultAssertions.checked = this.settings.defaultIncludeAssertions;
+    this.settingSelectorPriority.value = this.settings.selectorPriority;
+    this.settingRecordHover.checked = this.settings.recordHover;
+    this.settingRecordScroll.checked = this.settings.recordScroll;
+    this.settingHighlightElements.checked = this.settings.highlightElements;
+
+    // Show panel
+    this.settingsPanel.classList.remove('hidden');
+  }
+
+  private closeSettings(): void {
+    this.settingsPanel.classList.add('hidden');
+  }
+
+  private async saveSettings(): Promise<void> {
+    // Gather settings from form
+    this.settings = {
+      baseUrl: this.settingBaseUrl.value.trim(),
+      describeName: this.settingDescribeName.value.trim() || DEFAULT_SETTINGS.describeName,
+      testNamePrefix: this.settingTestPrefix.value.trim() || DEFAULT_SETTINGS.testNamePrefix,
+      defaultIncludeA11y: this.settingDefaultA11y.checked,
+      defaultIncludeScreenshots: this.settingDefaultScreenshots.checked,
+      defaultIncludeAssertions: this.settingDefaultAssertions.checked,
+      selectorPriority: this.settingSelectorPriority.value as ExtensionSettings['selectorPriority'],
+      excludedClassPatterns: DEFAULT_SETTINGS.excludedClassPatterns,
+      recordHover: this.settingRecordHover.checked,
+      recordScroll: this.settingRecordScroll.checked,
+      highlightElements: this.settingHighlightElements.checked
+    };
+
+    try {
+      await chrome.storage.sync.set({ [STORAGE_KEYS.SETTINGS]: this.settings });
+
+      // Apply to current checkboxes
+      this.applySettingsToCheckboxes();
+
+      // Update code preview with new settings
+      this.updateCodePreview();
+
+      // Notify background script of settings change
+      await chrome.runtime.sendMessage({
+        type: 'SETTINGS_UPDATED',
+        payload: this.settings
+      });
+
+      this.closeSettings();
+      this.showToast('Settings saved!');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      this.showToast('Failed to save settings');
+    }
+  }
+
+  private async resetSettings(): Promise<void> {
+    if (!confirm('Reset all settings to defaults?')) return;
+
+    this.settings = { ...DEFAULT_SETTINGS };
+
+    // Update form
+    this.settingBaseUrl.value = this.settings.baseUrl;
+    this.settingDescribeName.value = this.settings.describeName;
+    this.settingTestPrefix.value = this.settings.testNamePrefix;
+    this.settingDefaultA11y.checked = this.settings.defaultIncludeA11y;
+    this.settingDefaultScreenshots.checked = this.settings.defaultIncludeScreenshots;
+    this.settingDefaultAssertions.checked = this.settings.defaultIncludeAssertions;
+    this.settingSelectorPriority.value = this.settings.selectorPriority;
+    this.settingRecordHover.checked = this.settings.recordHover;
+    this.settingRecordScroll.checked = this.settings.recordScroll;
+    this.settingHighlightElements.checked = this.settings.highlightElements;
+
+    this.showToast('Settings reset to defaults');
   }
 }
 
