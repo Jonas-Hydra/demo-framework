@@ -17,5 +17,5 @@
 import './commands';
 
 // Import Axe core for accessibility testing
-import '@axe-core/cypress';
+import 'cypress-axe';
 
