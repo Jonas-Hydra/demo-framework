@@ -118,6 +118,31 @@ export class SelectorGenerator {
       // Try with text content
       const textSelector = this.buildRoleTextSelector(role, name);
       if (textSelector && this.isUnique(textSelector)) return textSelector;
+
+      // Role + text not unique - try adding distinguishing class
+      const classes = Array.from(element.classList);
+      const stableClasses = classes.filter(cls => !this.isFrameworkClass(cls));
+
+      // Sort by specificity
+      const sortedClasses = [...stableClasses].sort((a, b) => {
+        const aHasModifier = a.includes('-');
+        const bHasModifier = b.includes('-');
+        if (aHasModifier && !bHasModifier) return -1;
+        if (!aHasModifier && bHasModifier) return 1;
+        return b.length - a.length;
+      });
+
+      const escapedText = this.escapeTextForContains(name.substring(0, 30));
+      for (const cls of sortedClasses) {
+        const selectorWithClass = `[role="${role}"].${CSS.escape(cls)}:contains("${escapedText}")`;
+        if (this.isUnique(selectorWithClass)) return selectorWithClass;
+      }
+
+      // Try just role + class (without text)
+      for (const cls of sortedClasses) {
+        const selectorWithClass = `[role="${role}"].${CSS.escape(cls)}`;
+        if (this.isUnique(selectorWithClass)) return selectorWithClass;
+      }
     }
 
     // Role alone might work for some elements
@@ -151,7 +176,35 @@ export class SelectorGenerator {
 
     // Use Cypress contains for text matching
     const escaped = this.escapeTextForContains(text);
-    return `${tagName}:contains("${escaped}")`;
+    const textOnlySelector = `${tagName}:contains("${escaped}")`;
+
+    // If text-only selector is unique, use it
+    if (this.isUnique(textOnlySelector)) {
+      return textOnlySelector;
+    }
+
+    // Text isn't unique - try combining with distinguishing classes
+    const classes = Array.from(element.classList);
+    const stableClasses = classes.filter(cls => !this.isFrameworkClass(cls));
+
+    // Sort by specificity (classes with modifiers like btn-primary are more specific)
+    const sortedClasses = [...stableClasses].sort((a, b) => {
+      const aHasModifier = a.includes('-');
+      const bHasModifier = b.includes('-');
+      if (aHasModifier && !bHasModifier) return -1;
+      if (!aHasModifier && bHasModifier) return 1;
+      return b.length - a.length;
+    });
+
+    // Try combining text with a distinguishing class
+    for (const cls of sortedClasses) {
+      const selector = `${tagName}.${CSS.escape(cls)}:contains("${escaped}")`;
+      if (this.isUnique(selector)) {
+        return selector;
+      }
+    }
+
+    return null;
   }
 
   private getStableClassSelector(element: Element): string | null {
@@ -164,17 +217,39 @@ export class SelectorGenerator {
 
     const tagName = element.tagName.toLowerCase();
 
-    // Try single stable class
-    for (const cls of stableClasses) {
+    // Sort classes to prioritize more specific/distinguishing ones
+    // Classes with modifiers (containing -) are often more specific (e.g., btn-primary vs btn)
+    const sortedClasses = [...stableClasses].sort((a, b) => {
+      const aHasModifier = a.includes('-') && !a.startsWith('ng-') && !a.startsWith('sc-');
+      const bHasModifier = b.includes('-') && !b.startsWith('ng-') && !b.startsWith('sc-');
+      if (aHasModifier && !bHasModifier) return -1;
+      if (!aHasModifier && bHasModifier) return 1;
+      // Prefer longer class names (usually more specific)
+      return b.length - a.length;
+    });
+
+    // Try single stable class (prioritizing distinguishing ones)
+    for (const cls of sortedClasses) {
       const selector = `${tagName}.${CSS.escape(cls)}`;
       if (this.isUnique(selector)) return selector;
     }
 
     // Try combination of stable classes
-    if (stableClasses.length >= 2) {
-      const classSelector = stableClasses.slice(0, 3).map(c => `.${CSS.escape(c)}`).join('');
-      const selector = `${tagName}${classSelector}`;
-      if (this.isUnique(selector)) return selector;
+    if (sortedClasses.length >= 2) {
+      // Try pairs of classes
+      for (let i = 0; i < Math.min(sortedClasses.length, 3); i++) {
+        for (let j = i + 1; j < Math.min(sortedClasses.length, 4); j++) {
+          const selector = `${tagName}.${CSS.escape(sortedClasses[i])}.${CSS.escape(sortedClasses[j])}`;
+          if (this.isUnique(selector)) return selector;
+        }
+      }
+
+      // Try three classes
+      if (sortedClasses.length >= 3) {
+        const classSelector = sortedClasses.slice(0, 3).map(c => `.${CSS.escape(c)}`).join('');
+        const selector = `${tagName}${classSelector}`;
+        if (this.isUnique(selector)) return selector;
+      }
     }
 
     return null;
@@ -242,11 +317,34 @@ export class SelectorGenerator {
     try {
       // Handle :contains pseudo-selector (Cypress-specific)
       if (selector.includes(':contains(')) {
-        // For contains selectors, we can't verify uniqueness in DOM
-        // Return true and let Cypress handle it
-        return true;
+        return this.isUniqueContains(selector);
       }
       return document.querySelectorAll(selector).length === 1;
+    } catch {
+      return false;
+    }
+  }
+
+  private isUniqueContains(selector: string): boolean {
+    // Parse :contains() selector and verify uniqueness manually
+    // Format: "baseSelector:contains("text")" or "[role="x"]:contains("text")"
+    const containsMatch = selector.match(/^(.+?):contains\("(.+?)"\)$/);
+    if (!containsMatch) return false;
+
+    const [, baseSelector, searchText] = containsMatch;
+
+    try {
+      const elements = document.querySelectorAll(baseSelector);
+      let matchCount = 0;
+
+      elements.forEach(el => {
+        const text = (el.textContent || '').trim();
+        if (text.includes(searchText.trim())) {
+          matchCount++;
+        }
+      });
+
+      return matchCount === 1;
     } catch {
       return false;
     }
