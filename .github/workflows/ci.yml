@@ -26,10 +26,10 @@ jobs:
       - name: Run Cypress tests
         uses: cypress-io/github-action@v6
         with:
+          install: false
           command: npm run test:accessibility
           browser: chrome
           headless: true
-          record: false
 
       - name: Generate HTML report
         run: |
@@ -49,6 +49,7 @@ jobs:
             cypress/screenshots/
             cypress/videos/
           retention-days: 30
+          if-no-files-found: ignore
 
       - name: Upload Cypress screenshots
         uses: actions/upload-artifact@v4
@@ -57,6 +58,7 @@ jobs:
           name: cypress-screenshots
           path: cypress/screenshots
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload Cypress videos
         uses: actions/upload-artifact@v4
@@ -65,4 +67,5 @@ jobs:
           name: cypress-videos
           path: cypress/videos
           retention-days: 7
+          if-no-files-found: ignore
 
