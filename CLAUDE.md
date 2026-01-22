@@ -129,7 +129,3 @@ The `chrome-extension/` directory contains a browser extension for recording tes
 2. Load unpacked extension from `chrome-extension/dist`
 3. Record interactions in the browser
 4. Export generated Cypress test code
-
-## CI/CD
-
-GitHub Actions workflow (`.github/workflows/ci.yml`) runs on push/PR to main. Tests run in headless Chrome on Ubuntu. Reports and screenshots are uploaded as artifacts.
